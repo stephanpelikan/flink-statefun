@@ -20,11 +20,13 @@ package org.apache.flink.statefun.flink.core.functions;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.Executor;
+
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.internal.InternalListState;
+import org.apache.flink.runtime.state.internal.InternalMapState;
 import org.apache.flink.statefun.flink.core.StatefulFunctionsUniverse;
 import org.apache.flink.statefun.flink.core.backpressure.BackPressureValve;
 import org.apache.flink.statefun.flink.core.di.Inject;
@@ -32,6 +34,7 @@ import org.apache.flink.statefun.flink.core.di.Lazy;
 import org.apache.flink.statefun.flink.core.di.ObjectContainer;
 import org.apache.flink.statefun.flink.core.message.Message;
 import org.apache.flink.statefun.flink.core.message.MessageFactory;
+import org.apache.flink.statefun.flink.core.message.TimedMessage;
 import org.apache.flink.statefun.flink.core.metrics.FlinkFuncionTypeMetricsFactory;
 import org.apache.flink.statefun.flink.core.metrics.FlinkFunctionDispatcherMetrics;
 import org.apache.flink.statefun.flink.core.metrics.FuncionTypeMetricsFactory;
@@ -61,7 +64,8 @@ final class Reductions {
       RuntimeContext context,
       KeyedStateBackend<Object> keyedStateBackend,
       TimerServiceFactory timerServiceFactory,
-      InternalListState<String, Long, Message> delayedMessagesBufferState,
+      InternalListState<String, Long, Object> delayedMessagesBufferState,
+      InternalMapState<String, String, String, TimedMessage> delayedTimedMessageBufferState,
       Map<EgressIdentifier<?>, OutputTag<Object>> sideOutputs,
       Output<StreamRecord<Message>> output,
       MessageFactory messageFactory,
@@ -114,9 +118,11 @@ final class Reductions {
 
     // for delayed messages
     container.add(
-        "delayed-messages-buffer-state", InternalListState.class, delayedMessagesBufferState);
+        DelayedMessagesBuffer.BUFFER_STATE_LABEL, InternalListState.class, delayedMessagesBufferState);
     container.add(
-        "delayed-messages-buffer",
+        DelayedMessagesBuffer.BUFFER_MESSAGES_LABEL, InternalMapState.class, delayedTimedMessageBufferState);
+    container.add(
+        DelayedMessagesBuffer.BUFFER_LABEL,
         DelayedMessagesBuffer.class,
         FlinkStateDelayedMessagesBuffer.class);
     container.add(

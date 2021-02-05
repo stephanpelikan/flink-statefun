@@ -21,14 +21,17 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
+
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
+import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.runtime.state.internal.InternalListState;
+import org.apache.flink.runtime.state.internal.InternalMapState;
 import org.apache.flink.statefun.flink.core.StatefulFunctionsConfig;
 import org.apache.flink.statefun.flink.core.StatefulFunctionsUniverse;
 import org.apache.flink.statefun.flink.core.StatefulFunctionsUniverses;
@@ -38,6 +41,7 @@ import org.apache.flink.statefun.flink.core.common.MailboxExecutorFacade;
 import org.apache.flink.statefun.flink.core.common.ManagingResources;
 import org.apache.flink.statefun.flink.core.message.Message;
 import org.apache.flink.statefun.flink.core.message.MessageFactory;
+import org.apache.flink.statefun.flink.core.message.TimedMessage;
 import org.apache.flink.statefun.flink.core.types.DynamicallyRegisteredTypes;
 import org.apache.flink.statefun.sdk.FunctionType;
 import org.apache.flink.statefun.sdk.StatefulFunctionProvider;
@@ -55,6 +59,8 @@ public class FunctionGroupOperator extends AbstractStreamOperator<Message>
 
   private static final long serialVersionUID = 1L;
 
+  static final String BUFFER_STATE_NAME = "delayed-messages-buffer";
+  
   // -- configuration
   private final Map<EgressIdentifier<?>, OutputTag<Object>> sideOutputs;
 
@@ -99,12 +105,17 @@ public class FunctionGroupOperator extends AbstractStreamOperator<Message>
 
     final TypeSerializer<Message> envelopeSerializer =
         getOperatorConfig().getTypeSerializerIn(0, getContainingTask().getUserCodeClassLoader());
+    final TypeSerializer<Object> delayedMessageSerializer =
+            getOperatorConfig().getTypeSerializerIn(0, getContainingTask().getUserCodeClassLoader());
     final MapStateDescriptor<Long, Message> asyncOperationStateDescriptor =
         new MapStateDescriptor<>(
             "asyncOperations", LongSerializer.INSTANCE, envelopeSerializer.duplicate());
-    final ListStateDescriptor<Message> delayedMessageStateDescriptor =
+    final ListStateDescriptor<Object> delayedMessageStateDescriptor =
         new ListStateDescriptor<>(
-            FlinkStateDelayedMessagesBuffer.BUFFER_STATE_NAME, envelopeSerializer.duplicate());
+            FlinkStateDelayedMessagesBuffer.BUFFER_STATE_NAME, delayedMessageSerializer.duplicate());
+    final MapStateDescriptor<String, TimedMessage> delayedTimedMessageStateDescriptor =
+        new MapStateDescriptor<>(
+            FlinkStateDelayedMessagesBuffer.BUFFER_MESSAGES_STATE_NAME, String.class, TimedMessage.class);
     final MapState<Long, Message> asyncOperationState =
         getRuntimeContext().getMapState(asyncOperationStateDescriptor);
 
@@ -131,6 +142,7 @@ public class FunctionGroupOperator extends AbstractStreamOperator<Message>
             new FlinkTimerServiceFactory(
                 super.getTimeServiceManager().orElseThrow(IllegalStateException::new)),
             delayedMessagesBufferState(delayedMessageStateDescriptor),
+            delayedTimedMessagesBufferState(delayedTimedMessageStateDescriptor),
             sideOutputs,
             output,
             MessageFactory.forType(statefulFunctionsUniverse.messageFactoryType()),
@@ -203,16 +215,28 @@ public class FunctionGroupOperator extends AbstractStreamOperator<Message>
   // Helpers
   // ------------------------------------------------------------------------------------------------------------------
 
-  private InternalListState<String, Long, Message> delayedMessagesBufferState(
-      ListStateDescriptor<Message> delayedMessageStateDescriptor) {
+  private InternalListState<String, Long, Object> delayedMessagesBufferState(
+      ListStateDescriptor<Object> delayedMessageStateDescriptor) {
     try {
       KeyedStateBackend<String> keyedStateBackend = getKeyedStateBackend();
-      return (InternalListState<String, Long, Message>)
+      return (InternalListState<String, Long, Object>)
           keyedStateBackend.getOrCreateKeyedState(
               LongSerializer.INSTANCE, delayedMessageStateDescriptor);
     } catch (Exception e) {
       throw new RuntimeException("Error registered Flink state for delayed messages buffer.", e);
     }
+  }
+  
+  private InternalMapState<String, String, String, TimedMessage> delayedTimedMessagesBufferState(
+          MapStateDescriptor<String, TimedMessage> delayedTimedMessageStateDescriptor) {
+      try {
+          KeyedStateBackend<String> keyedStateBackend = getKeyedStateBackend();
+          return (InternalMapState<String, String, String, TimedMessage>)
+              keyedStateBackend.getOrCreateKeyedState(
+                  StringSerializer.INSTANCE, delayedTimedMessageStateDescriptor);
+        } catch (Exception e) {
+          throw new RuntimeException("Error registered Flink state for delayed messages buffer.", e);
+        } 
   }
 
   private StatefulFunctionsUniverse statefulFunctionsUniverse(

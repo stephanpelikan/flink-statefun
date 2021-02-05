@@ -21,7 +21,24 @@ import org.apache.flink.statefun.flink.core.message.Message;
 
 interface DelayedMessagesBuffer {
 
-  void add(Message message, long untilTimestamp);
+  String BUFFER_LABEL = "delayed-messages-buffer";
+  
+  String BUFFER_STATE_LABEL = "delayed-messages-buffer-state";
+
+  String BUFFER_MESSAGES_LABEL = "delayed-timedmessages-buffer-state";
+
+  /**
+   * @param message The message
+   * @param untilTimestamp The delay of delivery
+   * @return The message id
+   */
+  String add(Message message, long untilTimestamp);
+  
+  /**
+   * @param messageId The message id to remove
+   * @return the timestamp of the message, if no further message is registered for that timestamp otherwise null
+   */
+  Long remove(String messageId);
 
   Iterable<Message> getForTimestamp(long timestamp);
 

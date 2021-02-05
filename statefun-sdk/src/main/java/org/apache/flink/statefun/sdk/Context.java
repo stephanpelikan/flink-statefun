@@ -19,6 +19,7 @@ package org.apache.flink.statefun.sdk;
 
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
+
 import org.apache.flink.statefun.sdk.io.EgressIdentifier;
 
 /**
@@ -71,9 +72,17 @@ public interface Context {
    *     0.
    * @param to the target function's address.
    * @param message the input to provide for the delayed invocation.
+   * @return the message id which can be used to unsend the message (see {@link #unsendAfter(String)})
    */
-  void sendAfter(Duration delay, Address to, Object message);
+  String sendAfter(Duration delay, Address to, Object message);
 
+  /**
+   * Removes the message which was registerd to be sent delayed.
+   * 
+   * @param messageId The message id returned by {@link #sendAfter(Duration, Address, Object) or {@link #sendAfter(Duration, FunctionType, String, Object)}
+   */
+  void unsendAfter(String messageId);
+  
   /**
    * Invokes another function with an input, identified by the target function's {@link
    * FunctionType} and unique id.
@@ -95,9 +104,10 @@ public interface Context {
    * @param functionType the target function's type.
    * @param id the target function's id within its type.
    * @param message the input to provide for the delayed invocation.
+   * @return the message id which can be used to unsend the message (see {@link #unsendAfter(String)})
    */
-  default void sendAfter(Duration delay, FunctionType functionType, String id, Object message) {
-    sendAfter(delay, new Address(functionType, id), message);
+  default String sendAfter(Duration delay, FunctionType functionType, String id, Object message) {
+    return sendAfter(delay, new Address(functionType, id), message);
   }
 
   /**

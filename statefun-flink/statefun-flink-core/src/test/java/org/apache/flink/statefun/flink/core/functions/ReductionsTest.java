@@ -29,7 +29,9 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.stream.Stream;
+
 import javax.annotation.Nonnull;
+
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.DoubleCounter;
@@ -68,12 +70,14 @@ import org.apache.flink.runtime.state.StateSnapshotTransformer.StateSnapshotTran
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueElement;
 import org.apache.flink.runtime.state.internal.InternalListState;
+import org.apache.flink.runtime.state.internal.InternalMapState;
 import org.apache.flink.shaded.guava18.com.google.common.util.concurrent.MoreExecutors;
 import org.apache.flink.statefun.flink.core.StatefulFunctionsUniverse;
 import org.apache.flink.statefun.flink.core.TestUtils;
 import org.apache.flink.statefun.flink.core.backpressure.ThresholdBackPressureValve;
 import org.apache.flink.statefun.flink.core.message.Message;
 import org.apache.flink.statefun.flink.core.message.MessageFactoryType;
+import org.apache.flink.statefun.flink.core.message.TimedMessage;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.Triggerable;
@@ -96,6 +100,7 @@ public class ReductionsTest {
             new FakeKeyedStateBackend(),
             new FakeTimerServiceFactory(),
             new FakeInternalListState(),
+            new FakeInternalMapState(),
             new HashMap<>(),
             new FakeOutput(),
             TestUtils.ENVELOPE_FACTORY,
@@ -423,26 +428,118 @@ public class ReductionsTest {
     }
   }
 
+  private static final class FakeInternalMapState
+      implements InternalMapState<String, String, String, TimedMessage> {
+
+    @Override
+    public TypeSerializer<String> getKeySerializer() {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public TypeSerializer<String> getNamespaceSerializer() {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public TypeSerializer<Map<String, TimedMessage>> getValueSerializer() {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void setCurrentNamespace(String namespace) {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public byte[] getSerializedValue(byte[] serializedKeyAndNamespace, TypeSerializer<String> safeKeySerializer,
+        TypeSerializer<String> safeNamespaceSerializer,
+        TypeSerializer<Map<String, TimedMessage>> safeValueSerializer) throws Exception {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public StateIncrementalVisitor<String, String, Map<String, TimedMessage>> getStateIncrementalVisitor(
+        int recommendedMaxNumberOfReturnedRecords) {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void clear() {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public TimedMessage get(String key) throws Exception {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void put(String key, TimedMessage value) throws Exception {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void putAll(Map<String, TimedMessage> map) throws Exception {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void remove(String key) throws Exception {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public boolean contains(String key) throws Exception {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public Iterable<Entry<String, TimedMessage>> entries() throws Exception {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public Iterable<String> keys() throws Exception {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public Iterable<TimedMessage> values() throws Exception {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public Iterator<Entry<String, TimedMessage>> iterator() throws Exception {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public boolean isEmpty() throws Exception {
+      throw new UnsupportedOperationException();
+    }   
+  }
+  
   private static final class FakeInternalListState
-      implements InternalListState<String, Long, Message> {
+      implements InternalListState<String, Long, Object> {
 
     @Override
-    public void add(Message value) throws Exception {
+    public void add(Object value) throws Exception {
       throw new UnsupportedOperationException();
     }
 
     @Override
-    public void addAll(List<Message> values) throws Exception {
+    public void addAll(List<Object> values) throws Exception {
       throw new UnsupportedOperationException();
     }
 
     @Override
-    public void update(List<Message> values) throws Exception {
+    public void update(List<Object> values) throws Exception {
       throw new UnsupportedOperationException();
     }
 
     @Override
-    public void updateInternal(List<Message> valueToStore) throws Exception {
+    public void updateInternal(List<Object> valueToStore) throws Exception {
       throw new UnsupportedOperationException();
     }
 
@@ -461,18 +558,18 @@ public class ReductionsTest {
         byte[] serializedKeyAndNamespace,
         TypeSerializer<String> safeKeySerializer,
         TypeSerializer<Long> safeNamespaceSerializer,
-        TypeSerializer<List<Message>> safeValueSerializer)
+        TypeSerializer<List<Object>> safeValueSerializer)
         throws Exception {
       throw new UnsupportedOperationException();
     }
 
     @Override
-    public List<Message> getInternal() throws Exception {
+    public List<Object> getInternal() throws Exception {
       throw new UnsupportedOperationException();
     }
 
     @Override
-    public Iterable<Message> get() throws Exception {
+    public Iterable<Object> get() throws Exception {
       throw new UnsupportedOperationException();
     }
 
@@ -482,7 +579,7 @@ public class ReductionsTest {
     }
 
     @Override
-    public StateIncrementalVisitor<String, Long, List<Message>> getStateIncrementalVisitor(
+    public StateIncrementalVisitor<String, Long, List<Object>> getStateIncrementalVisitor(
         int recommendedMaxNumberOfReturnedRecords) {
       throw new UnsupportedOperationException();
     }
@@ -498,7 +595,7 @@ public class ReductionsTest {
     }
 
     @Override
-    public TypeSerializer<List<Message>> getValueSerializer() {
+    public TypeSerializer<List<Object>> getValueSerializer() {
       throw new UnsupportedOperationException();
     }
   }
