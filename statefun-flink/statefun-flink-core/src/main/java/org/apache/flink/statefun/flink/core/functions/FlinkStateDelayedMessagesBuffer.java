@@ -70,7 +70,7 @@ final class FlinkStateDelayedMessagesBuffer implements DelayedMessagesBuffer {
     String messageId = uuidGenerator.generate().toString();
     try {
       bufferedMessages.setCurrentNamespace(getLocationPartOfMessageId(messageId));
-      bufferedMessages.put(getNonLocatinPartOfMessageId(messageId), new TimedMessage(untilTimestamp, message));
+      bufferedMessages.put(getNonLocationPartOfMessageId(messageId), new TimedMessage(untilTimestamp, message));
       bufferState.setCurrentNamespace(untilTimestamp);
       bufferState.add(messageId);
     } catch (Exception e) {
@@ -83,7 +83,7 @@ final class FlinkStateDelayedMessagesBuffer implements DelayedMessagesBuffer {
   public Long remove(String messageId) {
     try {
       bufferedMessages.setCurrentNamespace(getLocationPartOfMessageId(messageId));
-      String key = getNonLocatinPartOfMessageId(messageId);
+      String key = getNonLocationPartOfMessageId(messageId);
       TimedMessage timedMessage = bufferedMessages.get(key);
       bufferedMessages.remove(key);
       bufferState.setCurrentNamespace(timedMessage.getTimestamp());
@@ -126,7 +126,7 @@ final class FlinkStateDelayedMessagesBuffer implements DelayedMessagesBuffer {
             return (Message) input;
           }
           try {
-            return bufferedMessages.get(getNonLocatinPartOfMessageId(input.toString())).getMessage();
+            return bufferedMessages.get(getNonLocationPartOfMessageId(input.toString())).getMessage();
           } catch (Exception e) {
             throw new RuntimeException(
                  "Error accessing delayed message in buffered messages for timestamp: " + timestamp, e);
@@ -159,7 +159,7 @@ final class FlinkStateDelayedMessagesBuffer implements DelayedMessagesBuffer {
         try {
           String messageId = state.toString();
           bufferedMessages.setCurrentNamespace(getLocationPartOfMessageId(messageId));
-          bufferedMessages.remove(getNonLocatinPartOfMessageId(messageId));
+          bufferedMessages.remove(getNonLocationPartOfMessageId(messageId));
         } catch (Exception e) {
           throw new RuntimeException(
                "Error clearing buffered message '" + state + "' for timestamp: " + timestamp, e);
@@ -183,7 +183,7 @@ final class FlinkStateDelayedMessagesBuffer implements DelayedMessagesBuffer {
     return messageId.substring(messageId.lastIndexOf('-') + 1);
   }
   
-  private String getNonLocatinPartOfMessageId(String messageId) {
+  private String getNonLocationPartOfMessageId(String messageId) {
     return messageId.substring(0, messageId.lastIndexOf('-'));
   }
 }
