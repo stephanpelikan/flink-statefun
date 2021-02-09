@@ -20,7 +20,7 @@ package org.apache.flink.statefun.flink.core.functions;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
-
+import java.util.function.Function;
 import org.apache.flink.statefun.flink.core.backpressure.InternalContext;
 import org.apache.flink.statefun.flink.core.di.Inject;
 import org.apache.flink.statefun.flink.core.di.Label;
@@ -100,15 +100,16 @@ final class ReusableContext implements ApplyingContext, InternalContext {
   }
 
   @Override
-  public String sendAfter(Duration delay, Address to, Object message) {
+  public String sendAfter(Duration delay, Address to, Function<String, Object> messageBuilder) {
     Objects.requireNonNull(delay);
     Objects.requireNonNull(to);
-    Objects.requireNonNull(message);
+    Objects.requireNonNull(messageBuilder);
 
-    Message envelope = messageFactory.from(self(), to, message);
-    return delaySink.accept(envelope, delay.toMillis());
+    return delaySink.accept(
+        messageBuilder.andThen(message -> messageFactory.from(self(), to, message)),
+        delay.toMillis());
   }
-  
+
   @Override
   public void unsendAfter(String messageId) {
     Objects.requireNonNull(messageId);

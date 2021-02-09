@@ -18,13 +18,12 @@
 package org.apache.flink.statefun.flink.core.functions;
 
 import java.util.function.Function;
-
 import org.apache.flink.statefun.flink.core.message.Message;
 
 interface DelayedMessagesBuffer {
 
   String BUFFER_LABEL = "delayed-messages-buffer";
-  
+
   String BUFFER_STATE_LABEL = "delayed-messages-buffer-state";
 
   String BUFFER_MESSAGES_LABEL = "delayed-timedmessages-buffer-state";
@@ -35,10 +34,11 @@ interface DelayedMessagesBuffer {
    * @return The message id
    */
   String add(Function<String, Message> messageBuilder, long untilTimestamp);
-  
+
   /**
    * @param messageId The message id to remove
-   * @return the timestamp of the message, if no further message is registered for that timestamp otherwise null
+   * @return the timestamp of the message, if no further message is registered for that timestamp
+   *     otherwise null
    */
   Long remove(String messageId);
 

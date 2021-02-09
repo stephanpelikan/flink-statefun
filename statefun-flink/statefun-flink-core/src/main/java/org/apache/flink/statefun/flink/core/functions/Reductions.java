@@ -20,7 +20,6 @@ package org.apache.flink.statefun.flink.core.functions;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.Executor;
-
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.metrics.MetricGroup;
@@ -118,9 +117,13 @@ final class Reductions {
 
     // for delayed messages
     container.add(
-        DelayedMessagesBuffer.BUFFER_STATE_LABEL, InternalListState.class, delayedMessagesBufferState);
+        DelayedMessagesBuffer.BUFFER_STATE_LABEL,
+        InternalListState.class,
+        delayedMessagesBufferState);
     container.add(
-        DelayedMessagesBuffer.BUFFER_MESSAGES_LABEL, InternalMapState.class, delayedTimedMessageBufferState);
+        DelayedMessagesBuffer.BUFFER_MESSAGES_LABEL,
+        InternalMapState.class,
+        delayedTimedMessageBufferState);
     container.add(
         DelayedMessagesBuffer.BUFFER_LABEL,
         DelayedMessagesBuffer.class,

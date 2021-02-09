@@ -29,9 +29,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.stream.Stream;
-
 import javax.annotation.Nonnull;
-
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.DoubleCounter;
@@ -452,15 +450,18 @@ public class ReductionsTest {
     }
 
     @Override
-    public byte[] getSerializedValue(byte[] serializedKeyAndNamespace, TypeSerializer<String> safeKeySerializer,
+    public byte[] getSerializedValue(
+        byte[] serializedKeyAndNamespace,
+        TypeSerializer<String> safeKeySerializer,
         TypeSerializer<String> safeNamespaceSerializer,
-        TypeSerializer<Map<String, TimedMessage>> safeValueSerializer) throws Exception {
+        TypeSerializer<Map<String, TimedMessage>> safeValueSerializer)
+        throws Exception {
       throw new UnsupportedOperationException();
     }
 
     @Override
-    public StateIncrementalVisitor<String, String, Map<String, TimedMessage>> getStateIncrementalVisitor(
-        int recommendedMaxNumberOfReturnedRecords) {
+    public StateIncrementalVisitor<String, String, Map<String, TimedMessage>>
+        getStateIncrementalVisitor(int recommendedMaxNumberOfReturnedRecords) {
       throw new UnsupportedOperationException();
     }
 
@@ -517,9 +518,9 @@ public class ReductionsTest {
     @Override
     public boolean isEmpty() throws Exception {
       throw new UnsupportedOperationException();
-    }   
+    }
   }
-  
+
   private static final class FakeInternalListState
       implements InternalListState<String, Long, Object> {
 

@@ -20,7 +20,6 @@ package org.apache.flink.statefun.sdk;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
-
 import org.apache.flink.statefun.sdk.io.EgressIdentifier;
 
 /**
@@ -73,12 +72,13 @@ public interface Context {
    *     0.
    * @param to the target function's address.
    * @param message the input to provide for the delayed invocation.
-   * @return the message id which can be used to unsend the message (see {@link #unsendAfter(String)})
+   * @return the message id which can be used to unsend the message (see {@link
+   *     #unsendAfter(String)})
    */
   default String sendAfter(Duration delay, Address to, Object message) {
-      return sendAfter(delay, to, unused -> message);
+    return sendAfter(delay, to, unused -> message);
   }
-  
+
   /**
    * Invokes another function with an input, identified by the target function's {@link Address},
    * after a given delay.
@@ -86,18 +86,20 @@ public interface Context {
    * @param delay the amount of delay before invoking the target function. Value needs to be &gt;=
    *     0.
    * @param to the target function's address.
-   * @param messageBuilder a function which provides the message to send. The function's input is the generated message id for setting as part of the delayed message.
-   * @return the message id which can be used to unsend the message (see {@link #unsendAfter(String)})
+   * @param messageBuilder a function which provides the message to send. The function's input is
+   *     the generated message id for setting as part of the delayed message.
+   * @return the message id which can be used to unsend the message (see {@link
+   *     #unsendAfter(String)})
    */
   String sendAfter(Duration delay, Address to, Function<String, Object> messageBuilder);
 
   /**
    * Removes the message which was registerd to be sent delayed.
-   * 
+   *
    * @param messageId The message id returned by {@link #sendAfter(Duration, Address, Object) or {@link #sendAfter(Duration, FunctionType, String, Object)}
    */
   void unsendAfter(String messageId);
-  
+
   /**
    * Invokes another function with an input, identified by the target function's {@link
    * FunctionType} and unique id.
@@ -118,10 +120,16 @@ public interface Context {
    *     0.
    * @param functionType the target function's type.
    * @param id the target function's id within its type.
-   * @param messageBuilder a function which provides the message to send. The function's input is the generated message id for setting as part of the delayed message.
-   * @return the message id which can be used to unsend the message (see {@link #unsendAfter(String)})
+   * @param messageBuilder a function which provides the message to send. The function's input is
+   *     the generated message id for setting as part of the delayed message.
+   * @return the message id which can be used to unsend the message (see {@link
+   *     #unsendAfter(String)})
    */
-  default String sendAfter(Duration delay, FunctionType functionType, String id, Function<String, Object> messageBuilder) {
+  default String sendAfter(
+      Duration delay,
+      FunctionType functionType,
+      String id,
+      Function<String, Object> messageBuilder) {
     return sendAfter(delay, new Address(functionType, id), messageBuilder);
   }
 
@@ -134,7 +142,8 @@ public interface Context {
    * @param functionType the target function's type.
    * @param id the target function's id within its type.
    * @param message the input to provide for the delayed invocation.
-   * @return the message id which can be used to unsend the message (see {@link #unsendAfter(String)})
+   * @return the message id which can be used to unsend the message (see {@link
+   *     #unsendAfter(String)})
    */
   default String sendAfter(Duration delay, FunctionType functionType, String id, Object message) {
     return sendAfter(delay, new Address(functionType, id), message);

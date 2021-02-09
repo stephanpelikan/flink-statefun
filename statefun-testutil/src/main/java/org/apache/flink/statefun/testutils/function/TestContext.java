@@ -31,6 +31,7 @@ import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.function.Function;
 import org.apache.flink.statefun.sdk.Address;
 import org.apache.flink.statefun.sdk.AsyncOperationResult;
 import org.apache.flink.statefun.sdk.Context;
@@ -101,9 +102,17 @@ class TestContext implements Context {
   }
 
   @Override
-  public void sendAfter(Duration delay, Address to, Object message) {
+  public String sendAfter(Duration delay, Address to, Function<String, Object> messageBuilder) {
+    String id = Long.toHexString(System.currentTimeMillis());
     pendingMessage.add(
-        new PendingMessage(new Envelope(self(), to, message), watermark + delay.toMillis()));
+        new PendingMessage(
+            id, new Envelope(self(), to, messageBuilder.apply(id)), watermark + delay.toMillis()));
+    return id;
+  }
+
+  @Override
+  public void unsendAfter(String messageId) {
+    pendingMessage.removeIf(message -> message.id.equals(messageId));
   }
 
   @Override
@@ -186,11 +195,14 @@ class TestContext implements Context {
   }
 
   private static class PendingMessage {
+    String id;
+
     Envelope envelope;
 
     long timer;
 
-    PendingMessage(Envelope envelope, long timer) {
+    PendingMessage(String id, Envelope envelope, long timer) {
+      this.id = id;
       this.envelope = envelope;
       this.timer = timer;
     }

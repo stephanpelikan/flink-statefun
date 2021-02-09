@@ -34,6 +34,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import org.apache.flink.statefun.flink.core.TestUtils;
 import org.apache.flink.statefun.flink.core.backpressure.InternalContext;
@@ -319,9 +320,13 @@ public class RequestReplyFunctionTest {
     }
 
     @Override
-    public void sendAfter(Duration delay, Address to, Object message) {
-      delayed.add(new SimpleImmutableEntry<>(delay, message));
+    public String sendAfter(Duration delay, Address to, Function<String, Object> messageBuilder) {
+      delayed.add(new SimpleImmutableEntry<>(delay, messageBuilder));
+      return null;
     }
+
+    @Override
+    public void unsendAfter(String messageId) {}
 
     @Override
     public <M, T> void registerAsyncOperation(M metadata, CompletableFuture<T> future) {}

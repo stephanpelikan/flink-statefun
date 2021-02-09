@@ -25,6 +25,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
 import org.apache.flink.statefun.flink.core.generated.EnvelopeAddress;
 import org.apache.flink.statefun.flink.core.message.Message;
 import org.apache.flink.statefun.flink.core.metrics.FunctionTypeMetrics;
@@ -130,7 +131,12 @@ public class LocalStatefulFunctionGroupTest {
     public <T> void send(EgressIdentifier<T> egress, T what) {}
 
     @Override
-    public void sendAfter(Duration duration, Address to, Object message) {}
+    public String sendAfter(Duration delay, Address to, Function<String, Object> messageBuilder) {
+      return null;
+    }
+
+    @Override
+    public void unsendAfter(String messageId) {}
 
     @Override
     public <M, T> void registerAsyncOperation(M metadata, CompletableFuture<T> future) {}

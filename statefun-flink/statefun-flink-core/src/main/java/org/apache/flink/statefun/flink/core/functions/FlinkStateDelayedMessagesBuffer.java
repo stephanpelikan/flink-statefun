@@ -17,11 +17,14 @@
  */
 package org.apache.flink.statefun.flink.core.functions;
 
+import com.fasterxml.uuid.EthernetAddress;
+import com.fasterxml.uuid.Generators;
+import com.fasterxml.uuid.impl.TimeBasedGenerator;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Function;
-
 import org.apache.commons.collections.Transformer;
 import org.apache.commons.collections.iterators.TransformIterator;
 import org.apache.flink.runtime.state.internal.InternalListState;
@@ -30,10 +33,7 @@ import org.apache.flink.statefun.flink.core.di.Inject;
 import org.apache.flink.statefun.flink.core.di.Label;
 import org.apache.flink.statefun.flink.core.message.Message;
 import org.apache.flink.statefun.flink.core.message.TimedMessage;
-
-import com.fasterxml.uuid.EthernetAddress;
-import com.fasterxml.uuid.Generators;
-import com.fasterxml.uuid.impl.TimeBasedGenerator;
+import org.apache.flink.util.IterableIterator;
 
 final class FlinkStateDelayedMessagesBuffer implements DelayedMessagesBuffer {
 
@@ -41,21 +41,19 @@ final class FlinkStateDelayedMessagesBuffer implements DelayedMessagesBuffer {
 
   static final String BUFFER_MESSAGES_STATE_NAME = "delayed-timedmessages-buffer";
 
-  private static final TimeBasedGenerator uuidGenerator = Generators.timeBasedGenerator(EthernetAddress.fromInterface());
+  private static final TimeBasedGenerator uuidGenerator =
+      Generators.timeBasedGenerator(EthernetAddress.fromInterface());
 
   /**
-   * Since FLINK-XXXXX: holds two kind of objects
-   * - Message: delayed messages triggered and stored in checkpoint/savepoint
-   *   before upgrading to a version implementing FLINK-XXXXX and restored by the new version
-   * - String: ids of messages stored in 'bufferedMessages'
+   * Since FLINK-XXXXX: holds two kind of objects - Message: delayed messages triggered and stored
+   * in checkpoint/savepoint before upgrading to a version implementing FLINK-XXXXX and restored by
+   * the new version - String: ids of messages stored in 'bufferedMessages'
    */
   private final InternalListState<String, Long, Object> bufferState;
-  
-  /**
-   * Stores the message and the timestamp of a delayed message by a message-key.
-   */
+
+  /** Stores the message and the timestamp of a delayed message by a message-key. */
   private final InternalMapState<String, String, String, TimedMessage> bufferedMessages;
-  
+
   @Inject
   FlinkStateDelayedMessagesBuffer(
       @Label(DelayedMessagesBuffer.BUFFER_STATE_LABEL)
@@ -72,7 +70,8 @@ final class FlinkStateDelayedMessagesBuffer implements DelayedMessagesBuffer {
     Message message = messageBuilder.apply(messageId);
     try {
       bufferedMessages.setCurrentNamespace(getLocationPartOfMessageId(messageId));
-      bufferedMessages.put(getNonLocationPartOfMessageId(messageId), new TimedMessage(untilTimestamp, message));
+      bufferedMessages.put(
+          getNonLocationPartOfMessageId(messageId), new TimedMessage(untilTimestamp, message));
       bufferState.setCurrentNamespace(untilTimestamp);
       bufferState.add(messageId);
     } catch (Exception e) {
@@ -80,7 +79,7 @@ final class FlinkStateDelayedMessagesBuffer implements DelayedMessagesBuffer {
     }
     return messageId;
   }
-  
+
   @Override
   public Long remove(String messageId) {
     try {
@@ -97,18 +96,19 @@ final class FlinkStateDelayedMessagesBuffer implements DelayedMessagesBuffer {
       }
       return newState.isEmpty() ? timedMessage.getTimestamp() : null;
     } catch (Exception e) {
-      throw new RuntimeException(
-          "Error clearing buffered messages for '" + messageId + "'", e);
+      throw new RuntimeException("Error clearing buffered messages for '" + messageId + "'", e);
     }
   }
-  
-  private List<Object> updatedListOfMessageReferences(String messageId, Iterable<Object> currentState) {
+
+  private List<Object> updatedListOfMessageReferences(
+      String messageId, Iterable<Object> currentState) {
     final List<Object> result = new LinkedList<>();
-    currentState.forEach(state -> {
-      if (!state.equals(messageId)) {
-        result.add(state);
-      }
-    });
+    currentState.forEach(
+        state -> {
+          if (!state.equals(messageId)) {
+            result.add(state);
+          }
+        });
     return result;
   }
 
@@ -119,22 +119,51 @@ final class FlinkStateDelayedMessagesBuffer implements DelayedMessagesBuffer {
     try {
       final Iterable<Object> timedMessages = bufferState.get();
       if (timedMessages == null) {
-          return null;
+        return null;
       }
-      return (Iterable<Message>) new TransformIterator(timedMessages.iterator(), new Transformer() {
+      return new IterableIterator<Message>() {
+        private Iterator<Message> source =
+            new TransformIterator(
+                timedMessages.iterator(),
+                new Transformer() {
+                  @Override
+                  public Message transform(Object input) {
+                    if (input instanceof Message) {
+                      return (Message) input;
+                    }
+                    try {
+                      return bufferedMessages
+                          .get(getNonLocationPartOfMessageId(input.toString()))
+                          .getMessage();
+                    } catch (Exception e) {
+                      throw new RuntimeException(
+                          "Error accessing delayed message in buffered messages for timestamp: "
+                              + timestamp,
+                          e);
+                    }
+                  }
+                });
+
         @Override
-        public Message transform(Object input) {
-          if (input instanceof Message) {
-            return (Message) input;
-          }
-          try {
-            return bufferedMessages.get(getNonLocationPartOfMessageId(input.toString())).getMessage();
-          } catch (Exception e) {
-            throw new RuntimeException(
-                 "Error accessing delayed message in buffered messages for timestamp: " + timestamp, e);
-          }
+        public boolean hasNext() {
+          return source.hasNext();
         }
-      });
+
+        @Override
+        public Message next() {
+          return source.next();
+        }
+
+        @Override
+        public void remove() {
+          throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public Iterator<Message> iterator() {
+          return source;
+        }
+      };
     } catch (Exception e) {
       throw new RuntimeException(
           "Error accessing delayed message in state buffer for timestamp: " + timestamp, e);
@@ -147,44 +176,43 @@ final class FlinkStateDelayedMessagesBuffer implements DelayedMessagesBuffer {
     clearBufferedMessages(timestamp);
     bufferState.clear();
   }
-  
+
   private void clearBufferedMessages(long timestamp) {
     try {
       Iterable<Object> timedMessages = bufferState.get();
       if (timedMessages == null) {
         return;
       }
-      timedMessages.forEach(state -> {
-        if (state instanceof Message) {
-          return;
-        }
-        try {
-          String messageId = state.toString();
-          bufferedMessages.setCurrentNamespace(getLocationPartOfMessageId(messageId));
-          bufferedMessages.remove(getNonLocationPartOfMessageId(messageId));
-        } catch (Exception e) {
-          throw new RuntimeException(
-               "Error clearing buffered message '" + state + "' for timestamp: " + timestamp, e);
-        }
-      });
+      timedMessages.forEach(
+          state -> {
+            if (state instanceof Message) {
+              return;
+            }
+            try {
+              String messageId = state.toString();
+              bufferedMessages.setCurrentNamespace(getLocationPartOfMessageId(messageId));
+              bufferedMessages.remove(getNonLocationPartOfMessageId(messageId));
+            } catch (Exception e) {
+              throw new RuntimeException(
+                  "Error clearing buffered message '" + state + "' for timestamp: " + timestamp, e);
+            }
+          });
     } catch (Exception e) {
-      throw new RuntimeException(
-           "Error clearing buffered messages for timestamp: " + timestamp, e);
+      throw new RuntimeException("Error clearing buffered messages for timestamp: " + timestamp, e);
     }
   }
-  
+
   /**
-   * For scoping the total amount of stored messages the location-part
-   * of the id (last 12 digits e.g. 'e3e21425-652d-11eb-bca5-1230362d1657' ->
-   * '1230362d1657') is used as namespace.
-   * 
+   * For scoping the total amount of stored messages the location-part of the id (last 12 digits
+   * e.g. 'e3e21425-652d-11eb-bca5-1230362d1657' -> '1230362d1657') is used as namespace.
+   *
    * @param messageId The message id
    * @return The location-based part of the UUID
    */
   private String getLocationPartOfMessageId(String messageId) {
     return messageId.substring(messageId.lastIndexOf('-') + 1);
   }
-  
+
   private String getNonLocationPartOfMessageId(String messageId) {
     return messageId.substring(0, messageId.lastIndexOf('-'));
   }
