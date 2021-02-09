@@ -17,6 +17,8 @@
  */
 package org.apache.flink.statefun.flink.core.functions;
 
+import java.util.function.Function;
+
 import org.apache.flink.statefun.flink.core.message.Message;
 
 interface DelayedMessagesBuffer {
@@ -28,11 +30,11 @@ interface DelayedMessagesBuffer {
   String BUFFER_MESSAGES_LABEL = "delayed-timedmessages-buffer-state";
 
   /**
-   * @param message The message
+   * @param messageBuilder The message
    * @param untilTimestamp The delay of delivery
    * @return The message id
    */
-  String add(Message message, long untilTimestamp);
+  String add(Function<String, Message> messageBuilder, long untilTimestamp);
   
   /**
    * @param messageId The message id to remove

@@ -18,6 +18,7 @@
 package org.apache.flink.statefun.flink.core.functions;
 
 import java.util.Objects;
+import java.util.function.Function;
 
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.statefun.flink.core.di.Inject;
@@ -54,14 +55,14 @@ final class DelaySink implements Triggerable<String, VoidNamespace> {
     this.delayedMessagesTimerService = delayedMessagesTimerServiceFactory.createTimerService(this);
   }
 
-  String accept(Message message, long delayMillis) {
-    Objects.requireNonNull(message);
+  String accept(Function<String, Message> messageBuilder, long delayMillis) {
+    Objects.requireNonNull(messageBuilder);
     Preconditions.checkArgument(delayMillis >= 0);
 
     final long triggerTime = delayedMessagesTimerService.currentProcessingTime() + delayMillis;
 
     delayedMessagesTimerService.registerProcessingTimeTimer(VoidNamespace.INSTANCE, triggerTime);
-    return delayedMessagesBuffer.add(message, triggerTime);
+    return delayedMessagesBuffer.add(messageBuilder, triggerTime);
   }
   
   void remove(String messageId) {

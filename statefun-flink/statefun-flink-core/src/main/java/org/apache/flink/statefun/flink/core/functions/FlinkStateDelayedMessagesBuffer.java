@@ -20,6 +20,7 @@ package org.apache.flink.statefun.flink.core.functions;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Function;
 
 import org.apache.commons.collections.Transformer;
 import org.apache.commons.collections.iterators.TransformIterator;
@@ -66,8 +67,9 @@ final class FlinkStateDelayedMessagesBuffer implements DelayedMessagesBuffer {
   }
 
   @Override
-  public String add(Message message, long untilTimestamp) {
+  public String add(Function<String, Message> messageBuilder, long untilTimestamp) {
     String messageId = uuidGenerator.generate().toString();
+    Message message = messageBuilder.apply(messageId);
     try {
       bufferedMessages.setCurrentNamespace(getLocationPartOfMessageId(messageId));
       bufferedMessages.put(getNonLocationPartOfMessageId(messageId), new TimedMessage(untilTimestamp, message));
